@@ -1,19 +1,5 @@
 # Module 1 Homework: Docker & SQL
 
-In this homework we'll prepare the environment and practice
-Docker and SQL
-
-When submitting your homework, you will also need to include
-a link to your GitHub repository or other public code-hosting
-site.
-
-This repository should contain the code for solving the homework. 
-
-When your solution has SQL or shell commands and not code
-(e.g. python files) file format, include them directly in
-the README file of your repository.
-
-
 ## Question 1. Understanding docker first run 
 
 Run docker with the `python:3.12.8` image in an interactive mode, use the entrypoint `bash`.
@@ -25,6 +11,11 @@ What's the version of `pip` in the image?
 - 23.3.1
 - 23.2.1
 
+```yaml
+python --version  # Python 3.12.8
+pip --version     # pip 24.3.1
+```
+answer : `24.3.1`
 
 ## Question 2. Understanding Docker networking and docker-compose
 
@@ -70,25 +61,7 @@ volumes:
 
 If there are more than one answers, select only one of them
 
-##  Prepare Postgres
-
-Run Postgres and load data as shown in the videos
-We'll use the green taxi trips from October 2019:
-
-```bash
-wget https://github.com/DataTalksClub/nyc-tlc-data/releases/download/green/green_tripdata_2019-10.csv.gz
-```
-
-You will also need the dataset with zones:
-
-```bash
-wget https://github.com/DataTalksClub/nyc-tlc-data/releases/download/misc/taxi_zone_lookup.csv
-```
-
-Download this data and put it into Postgres.
-
-You can use the code from the course. It's up to you whether
-you want to use Jupyter or a python script.
+answers: `postgres:5432`
 
 ## Question 3. Trip Segmentation Count
 
@@ -107,6 +80,25 @@ Answers:
 - 104,793;  202,661;  109,603;  27,678;  35,189
 - 104,838;  199,013;  109,645;  27,688;  35,202
 
+```yaml
+SELECT 
+    CASE
+        WHEN trip_distance <= 1 THEN '0-1 miles'
+        WHEN trip_distance > 1 AND trip_distance <= 3 THEN '1-3 miles'
+        WHEN trip_distance > 3 AND trip_distance <= 7 THEN '3-7 miles'
+        WHEN trip_distance > 7 AND trip_distance <= 10 THEN '7-10 miles'
+        ELSE 'over 10 miles'
+    END AS distance_category,
+    COUNT(*) as number_trips
+FROM green_taxi_trips
+WHERE lpep_pickup_datetime >= '2019-10-01' 
+    AND lpep_pickup_datetime < '2019-11-01'
+GROUP BY 1
+ORDER BY 1;
+```
+
+answer: `Option 5: 104,838; 199,013; 109,645; 27,688; 35,202`
+
 
 ## Question 4. Longest trip for each day
 
@@ -120,6 +112,19 @@ Tip: For every day, we only care about one single trip with the longest distance
 - 2019-10-26
 - 2019-10-31
 
+```yaml
+SELECT 
+    DATE(lpep_pickup_datetime) as pickup_day,
+    MAX(trip_distance) as longest_trip
+FROM green_taxi_trips
+WHERE lpep_pickup_datetime >= '2019-10-01' 
+    AND lpep_pickup_datetime < '2019-11-01'
+GROUP BY DATE(lpep_pickup_datetime)
+ORDER BY longest_trip DESC
+LIMIT 1;
+```
+answer: `October 31, 2019 had the longest trip of 515.89 miles`
+
 
 ## Question 5. Three biggest pickup zones
 
@@ -132,6 +137,22 @@ Consider only `lpep_pickup_datetime` when filtering by date.
 - East Harlem North, Morningside Heights
 - Morningside Heights, Astoria Park, East Harlem South
 - Bedford, East Harlem North, Astoria Park
+
+```yaml
+SELECT 
+    pz."Zone" as pickup_zone,
+    SUM(total_amount) as total_amount
+FROM green_taxi_trips t
+JOIN taxi_zones pz ON t."PULocationID" = pz."LocationID"
+WHERE DATE(lpep_pickup_datetime) = '2019-10-18'
+GROUP BY 1
+HAVING SUM(total_amount) > 13000
+ORDER BY total_amount DESC;
+```
+answer:
+- East Harlem North
+- East Harlem South
+- Morningside Heights
 
 
 ## Question 6. Largest tip
@@ -147,7 +168,24 @@ We need the name of the zone, not the ID.
 - Yorkville West
 - JFK Airport
 - East Harlem North
-- East Harlem South
+- East Harlem 
+
+```yaml
+SELECT 
+    dz."Zone" as dropoff_zone,
+    MAX(tip_amount) as max_tip
+FROM green_taxi_trips t
+JOIN taxi_zones pz ON t."PULocationID" = pz."LocationID"
+JOIN taxi_zones dz ON t."DOLocationID" = dz."LocationID"
+WHERE DATE(lpep_pickup_datetime) >= '2019-10-01' 
+    AND DATE(lpep_pickup_datetime) < '2019-11-01'
+    AND pz."Zone" = 'East Harlem North'
+GROUP BY dz."Zone"
+ORDER BY max_tip DESC
+LIMIT 1;
+```
+answer: 
+    JFK Airport had the largest tip amount of $87.30
 
 
 ## Terraform
@@ -174,6 +212,8 @@ Answers:
 - terraform init, terraform run -auto-approve, terraform destroy
 - terraform init, terraform apply -auto-approve, terraform destroy
 - terraform import, terraform apply -y, terraform rm
+
+answer: `terraform init, terraform apply -auto-approve, terraform destroy`
 
 
 ## Submitting the solutions
